@@ -10,20 +10,19 @@ The goals / steps of this project are the following:
 * Estimate a bounding box for vehicles detected.
 
 [//]: # (Image References)
-[image1]: ./examples/car_not_car.png
-[image2]: ./examples/HOG_example.jpg
-[image3]: ./examples/sliding_windows.jpg
-[image4]: ./examples/sliding_window.jpg
-[image5]: ./examples/bboxes_and_heat.png
-[image6]: ./examples/labels_map.png
-[image7]: ./examples/output_bboxes.png
-[video1]: ./project_video.mp4
 
-## [Rubric](https://review.udacity.com/#!/rubrics/513/view) Points
-### Here I will consider the rubric points individually and describe how I addressed each point in my implementation.  
+[image10]: ./output_images/not_car_hog_1.png
+[image11]: ./output_images/not_car_hog.png
+[image12]: ./output_images/car_hog1.png
+[image13]: ./output_images/car_hog.png
 
----
-### Writeup / README
+[image20]: ./output_images/OptimisationProcess.png
+
+[image30]: ./output_images/heat_map_1_image.png
+[image31]: ./output_images/heat_map_1.png
+
+
+##### [Rubric](https://review.udacity.com/#!/rubrics/513/view) Points
 
 ### Histogram of Oriented Gradients (HOG) and SVM training 
 
@@ -105,12 +104,20 @@ The code for this step is contained in the file `ExtractFeatures.py` with the cl
         hist_features = np.concatenate((channel1_hist[0], channel2_hist[0], channel3_hist[0]))
         # Return the individual histograms, bin_centers and feature vector
         return hist_features          
-
 ```
+
+In the following some example images with the corresponding hog features visualizied. With the parameter orient = 9
+pix_per_cell = 8 cell_per_block = 2.
+
+| Non Car Images        | Car Images           |
+|:-------------:|:-------------:|
+| ![alt text][image10]     | ![alt text][image12] |
+| ![alt text][image11]      | ![alt text][image13]      |
+
 
 #### 2. SVM Classifier 
 
-In the file `SvmClassifier.py` I handle the training and prediction with a Supported Vector Machine. At the Constructor I initialized a `StandardScaler.py`. The scaler transformation method is used for each passed feature vector. For the trainig stage I used a  `StratifiedShuffleSplit` with teen splits. So the best SVM with the best score is stored and will be used for prediction. The SVM is trainied with the probability flag true so it is possible to get probabilitys for each prediction. 
+In the file `SvmClassifier.py` I handle the training and prediction with a Supported Vector Machine. At the Constructor I initialized a `StandardScaler`. The scaler transformation method is used for each passed feature vector. For the trainig stage I used a  `StratifiedShuffleSplit` with teen splits. So the best SVM, with the best score is stored and will be used for prediction. The SVM is trainied with the probability flag true so it is possible to get probabilitys for each prediction. 
 
 
 ```python
@@ -155,7 +162,7 @@ class SvmClassifier(object):
 ```
 #### 3. Training and parameter optimisation
 
-With the above describet methods I first extracted the features for each image in the cars and notcars folder and trained an probabilistic support vector machine which is contained in the file `SvmClassifier.py`
+With the above describet methods I first extracted the features for each image in the cars and notcars folder and trained an probabilistic support vector machine which is contained in the file `train_svm.py`
 ```python
 images = glob.glob('test_images/vehicles_smallset/*/*.jpeg', recursive=True)
 cars = []
@@ -193,9 +200,12 @@ for colorspace in ['RGB', 'HSV', 'LUV', 'HLS', 'YUV', 'YCrCb']:
                    
 ```
 
+
 This very time consuming process resulted in an accuracy of 99.91% with the parameter color_space='YCrCb', spatial_size=(32, 32), hist_bins=32, orient=9, pix_per_cell=8, cell_per_block=2, hog_channel='ALL', spatial_feat=True, hist_feat=True,                    hog_feat=True
 
-Finaly I saved the class used for feature extraction and classification to a pickle file. For later classification I load this combination to make sure I use the same paramter I used for training. 
+![alt text][image20]
+
+Finaly I saved the class used for feature extraction and classification to a pickle file. For later classification I load this combination to make sure I use the same paramter as I used for the training stage. 
 
 ```python
 extracted_features_and_svm = {"svm":svm, "extractFeatures":extractFeatures}
@@ -226,49 +236,91 @@ The code for the iamge pyramid and the sliding window is located a the file `Ext
             # yield the next image in the pyramid
             yield image, scale
 ```
-I corpped the search area to y position 350 to 650 to reduce the search window an increase the processing speed. The window size is 64 which is defined by the size of the trainig images. The step size is 18 which is a very small value but with larger step sizes I had problems finding cars on the right corner of the image. To find cars a differnt scales I used a image pyramid which scales the image by the factor of two in the second iteration. 
+I corped the search area to y position 350 to 650 to reduce the search window an increase the processing speed. The window size is 64 which is defined by the size of the trainig images. The step size is 18 which is a very small value but with larger step sizes I had problems finding cars on the right corner of the image. To find cars a differnt scales I used a image pyramid which scales the image by the factor of two in the second iteration. 
+
+![sliding_window](https://github.com/ChristianMarzahl/CarND-Vehicle-Detection/blob/master/output_images/sliding_window.gif)
 
 
-I decided to search random window positions at random scales all over the image and came up with this (ok just kidding I didn't actually ;):
 
-![alt text][image3]
+#### 2. Finding cars and use of the svm to classify the image patches
 
-####2. Show some examples of test images to demonstrate how your pipeline is working.  What did you do to optimize the performance of your classifier?
+The file `ExtractCars.py`with the contained class `ExtractCars` is initialized with a search area `(400,600)`, a window size `(64,64)` the class for the feature extraction and the class that contains the trained classifier. The method `extract_cars` performs the classification pipeline. 
+1. Cropping the image to the passed search area 
+```python
+ sub_image = img[self.search_area[0]:self.search_area[1], :, :]
+```
+2. Scale the image according to the pyramid and slide the search window accross the iamge
+```python
+for layer, scale in self.pyramid(sub_image):
+    for (x, y, window) in self.sliding_window(layer, stepSize=stepSize, windowSize=(self.windowSize[0], self.windowSize[1])):
+```
+3. Extract features for the image patch 
+```python
+features = self.feature_extractor.extract_features(window)    
+```
+4. Performe the prediction for the image patch with the probablistic SVM
+```python
+prediction = self.classifier.predict_probability(features.reshape(1, -1))
+```
+5. Update the heatmap with the prediction result probability at the area of the current window.
+```python
+heatmap[int(y*scale):int((y + self.windowSize[1])*scale),int(x*scale):int((x + self.windowSize[0])*scale)] += prediction[0][1]
+```
 
-Ultimately I searched on two scales using YCrCb 3-channel HOG features plus spatially binned color and histograms of color in the feature vector, which provided a nice result.  Here are some example images:
+| Heatmap        |
+|:-------------:|
+| ![alt text][image30]     |
+| ![alt text][image31]      |
 
-![alt text][image4]
----
+6. Postprocessing and filtering 
+The heatmap is thresholded with a value of three to reduce false positives and the result dilated to remove small gabs betwenn the hot areas. Finaly I extract the contours to draw the bounding rectangle. 
+```python
+        kernel = np.ones((5,5),np.uint8)
+        _, thresh_image = cv2.threshold(heatmap.astype(np.uint8),3,255,cv2.THRESH_BINARY)
+        thresh_image = cv2.dilate(thresh_image,kernel,iterations=5)
+        im2, contours, hierarchy = cv2.findContours(thresh_image,cv2.RETR_LIST,cv2.CHAIN_APPROX_SIMPLE)
+        for c in contours:
+            (x, y, w, h) = cv2.boundingRect(c)
+            cv2.rectangle(sub_image_ori, (x, y), (x + w, y + h), (0, 255, 0), 2)
+```
 
 ### Video Implementation
 
-####1. Provide a link to your final video output.  Your pipeline should perform reasonably well on the entire project video (somewhat wobbly or unstable bounding boxes are ok as long as you are identifying the vehicles most of the time with minimal false positives.)
-Here's a [link to my video result](./project_video.mp4)
+The pipeline describet above worked well but hat a major drawback. It was to slow for effective use with around 5 to 10 seconds per frame. 
+
+<a href="http://www.youtube.com/watch?feature=player_embedded&v=JdKkFuINzYI" target="_blank"><img src="http://img.youtube.com/vi/JdKkFuINzYI/0.jpg" alt="CarND vehicle detection" width="720" height="360" border="10" /></a>
+
+#### YOLO
+
+Because I know the performance draw back in advance I did not speend to mutch time in performance and speed optimisation. Instead I used basicly [YOLO](https://pjreddie.com/darknet/yolo/) a real time object detection system for which I found a working Keras portation. I used this portation as a starting point and extendet the implementation with a additional feature to estimate the object distance from the camera. 
+For that I trained a aditional network network with a final dense layer which predicts the real object height. The used network architekure is basicly the same as for the CarND-Behavioral-Cloning project but instead of a steering angle I used the car height as y and pictures downloaded from google. The code for this is not part of my submission due to license restrictions. 
+
+| Layer (type)             |    Output Shape           |
+| :-------------: |:-------------:|
+| conv2d_1 (Conv2D)          |  (None, 17, 80, 16)      |
+| elu_1 (ELU)               |   (None, 17, 80, 16)      |
+| conv2d_2 (Conv2D)         |   (None, 9, 40, 32)     |
+| elu_2 (ELU)              |    (None, 9, 40, 32)      |
+| conv2d_3 (Conv2D)         |   (None, 5, 20, 64)    |
+| flatten_1 (Flatten)       |   (None, 6400)         |
+| dropout_1 (Dropout)      |    (None, 6400)         | 
+| elu_3 (ELU)              |    (None, 6400)         |
+| dense_1 (Dense)          |    (None, 512)          |
+| elu_4 (ELU)             |     (None, 512)          |
+| dense_2 (Dense)         |     (None, 1)            |
+
+The distance can be calculated with the predicted height by the following formula witch is described at this[page](http://www.pyimagesearch.com/2015/01/19/find-distance-camera-objectmarker-using-python-opencv/). 
+```python
+distance = (predicted_real_car_height * 29.4 / np.abs(object_height_in_pixel)) * 10
+```
+
+The following video was taken with my Nexus 5 placed on the dashboard of my car. The implementation run on my local GTX 1070.
+
+<a href="http://www.youtube.com/watch?feature=player_embedded&v=tVB-f1oESUg&t=33s" target="_blank"><img src="http://img.youtube.com/vi/tVB-f1oESUg/0.jpg" alt="CarND vehicle detection" width="720" height="360" border="10" /></a>
 
 
-####2. Describe how (and identify where in your code) you implemented some kind of filter for false positives and some method for combining overlapping bounding boxes.
+### Discussion
 
-I recorded the positions of positive detections in each frame of the video.  From the positive detections I created a heatmap and then thresholded that map to identify vehicle positions.  I then used `scipy.ndimage.measurements.label()` to identify individual blobs in the heatmap.  I then assumed each blob corresponded to a vehicle.  I constructed bounding boxes to cover the area of each blob detected.  
+#### 1. The implementation based on HOG and SVM is slow and produces to many false positive or don't find the car at all. Both drawbacks can by overcome by using modern Deep Learning aproches like YOLO or by using a CNN approch for feature extraction.  
 
-Here's an example result showing the heatmap from a series of frames of video, the result of `scipy.ndimage.measurements.label()` and the bounding boxes then overlaid on the last frame of video:
-
-### Here are six frames and their corresponding heatmaps:
-
-![alt text][image5]
-
-### Here is the output of `scipy.ndimage.measurements.label()` on the integrated heatmap from all six frames:
-![alt text][image6]
-
-### Here the resulting bounding boxes are drawn onto the last frame in the series:
-![alt text][image7]
-
-
-
----
-
-###Discussion
-
-####1. Briefly discuss any problems / issues you faced in your implementation of this project.  Where will your pipeline likely fail?  What could you do to make it more robust?
-
-Here I'll talk about the approach I took, what techniques I used, what worked and why, where the pipeline might fail and how I might improve it if I were going to pursue this project further.  
 
