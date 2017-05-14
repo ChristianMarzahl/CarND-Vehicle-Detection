@@ -6,10 +6,10 @@ from tqdm import tqdm
 
 class ExtractFeatures(object):
     """description of class"""
-
+    # 'YCrCb'
     def __init__(self, color_space='YCrCb', spatial_size=(32, 32), hist_bins=32, orient=9,
                      pix_per_cell=8, cell_per_block=2, hog_channel='ALL', spatial_feat=True, hist_feat=True,
-                     hog_feat=True, vis=False, feature_vec=True):
+                     hog_feat=True, vis=False, feature_vec=True): 
 
         self.color_space = color_space
         self.spatial_size = spatial_size
@@ -32,7 +32,8 @@ class ExtractFeatures(object):
         for file in tqdm(image_paths):
             file_features = []
             # Read in each one by one
-            image = mpimg.imread(file)
+            #image = mpimg.imread(file)
+            image = cv2.imread(file)
  
             # Convert color space
             feature_image = self.preprocess_image(image)
@@ -65,22 +66,22 @@ class ExtractFeatures(object):
                 hog_features = self.get_hog_features(image[:,:,self.hog_channel], self.orient, self.pix_per_cell, self.cell_per_block, vis=self.vis, feature_vec=self.feature_vec)
             # Append the new feature vector to the features list
             file_features.append(hog_features)
-        return np.concatenate(file_features).reshape(1, -1)
+        return np.concatenate(file_features) #.reshape(1, -1)
 
     def preprocess_image(self, image):
         
         # apply color conversion if other than 'RGB'
-        if self.color_space != 'RGB':
+        if self.color_space != 'BGR':
             if self.color_space == 'HSV':
-                feature_image = cv2.cvtColor(image, cv2.COLOR_RGB2HSV)
+                feature_image = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
             elif self.color_space == 'LUV':
-                feature_image = cv2.cvtColor(image, cv2.COLOR_RGB2LUV)
+                feature_image = cv2.cvtColor(image, cv2.COLOR_BGR2LUV)
             elif self.color_space == 'HLS':
-                feature_image = cv2.cvtColor(image, cv2.COLOR_RGB2HLS)
+                feature_image = cv2.cvtColor(image, cv2.COLOR_BGR2HLS)
             elif self.color_space == 'YUV':
-                feature_image = cv2.cvtColor(image, cv2.COLOR_RGB2YUV)
+                feature_image = cv2.cvtColor(image, cv2.COLOR_BGR2YUV)
             elif self.color_space == 'YCrCb':
-                feature_image = cv2.cvtColor(image, cv2.COLOR_RGB2YCrCb)
+                feature_image = cv2.cvtColor(image, cv2.COLOR_BGR2YCrCb)
         else: feature_image = np.copy(image)    
 
         return feature_image

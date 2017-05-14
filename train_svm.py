@@ -24,6 +24,7 @@ extractFeatures = ExtractFeatures()
 car_features = extractFeatures.extract_features_from_paths(cars)
 not_car_features = extractFeatures.extract_features_from_paths(notcars)
 
+#X = np.vstack((car_features, not_car_features)).astype(np.float64)
 X = np.vstack((car_features, not_car_features)).astype(np.float64)
 y = np.hstack((np.ones(len(car_features)), np.zeros(len(not_car_features))))
 

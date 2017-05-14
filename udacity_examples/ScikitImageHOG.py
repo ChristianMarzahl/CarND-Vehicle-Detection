@@ -33,9 +33,9 @@ def get_hog_features(img, orient, pix_per_cell, cell_per_block, vis=False, featu
         return features
 
 # Generate a random index to look at a car image
-ind = np.random.randint(0, len(cars))
+ind = np.random.randint(0, len(notcars))
 # Read in the image
-image = mpimg.imread(cars[ind])
+image = mpimg.imread(notcars[ind])
 gray = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
 # Define HOG parameters
 orient = 9
@@ -51,7 +51,7 @@ features, hog_image = get_hog_features(gray, orient,
 fig = plt.figure()
 plt.subplot(121)
 plt.imshow(image, cmap='gray')
-plt.title('Example Car Image')
+plt.title('Example Not a Car Image')
 plt.subplot(122)
 plt.imshow(hog_image, cmap='gray')
 plt.title('HOG Visualization')

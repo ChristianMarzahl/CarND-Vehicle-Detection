@@ -2429,12 +2429,6 @@
     <Compile Include="udacity_examples\SupportVectorMachine.py">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="utils\CamCalibration.py">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="utils\__init__.py">
-      <SubType>Code</SubType>
-    </Compile>
     <Compile Include="util\CamCalibration.py" />
     <Compile Include="util\ExtractCars.py">
       <SubType>Code</SubType>

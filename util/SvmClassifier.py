@@ -1,6 +1,7 @@
 from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import StratifiedShuffleSplit
 from sklearn.svm import LinearSVC
+from sklearn.svm import SVC
 
 class SvmClassifier(object):
     """description of class"""
@@ -21,7 +22,7 @@ class SvmClassifier(object):
             X_train, X_test = scaled_X[train_index], scaled_X[test_index]
             y_train, y_test = y[train_index], y[test_index]
 
-            temp_svm = LinearSVC()
+            temp_svm = SVC(probability=True)
             temp_svm.fit(X_train, y_train)
 
             score = round(temp_svm.score(X_test, y_test), 4)
@@ -35,3 +36,7 @@ class SvmClassifier(object):
         scaled_X = self.x_scaler.transform(X)        
         return self.svm.predict(scaled_X)
 
+    def predict_probability(self, X):
+
+        scaled_X = self.x_scaler.transform(X)        
+        return self.svm.predict_proba(scaled_X)
