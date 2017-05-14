@@ -1,8 +1,3 @@
-##Writeup Template
-###You can use this file as a template for your writeup if you want to submit it as a markdown file, but feel free to use some other method and submit a pdf if you prefer.
-
----
-
 **Vehicle Detection Project**
 
 The goals / steps of this project are the following:
@@ -25,43 +20,214 @@ The goals / steps of this project are the following:
 [video1]: ./project_video.mp4
 
 ## [Rubric](https://review.udacity.com/#!/rubrics/513/view) Points
-###Here I will consider the rubric points individually and describe how I addressed each point in my implementation.  
+### Here I will consider the rubric points individually and describe how I addressed each point in my implementation.  
 
 ---
-###Writeup / README
+### Writeup / README
 
-####1. Provide a Writeup / README that includes all the rubric points and how you addressed each one.  You can submit your writeup as markdown or pdf.  [Here](https://github.com/udacity/CarND-Vehicle-Detection/blob/master/writeup_template.md) is a template writeup for this project you can use as a guide and a starting point.  
+### Histogram of Oriented Gradients (HOG) and SVM training 
 
-You're reading it!
+#### 1. Feature extraction from the training images.
 
-###Histogram of Oriented Gradients (HOG)
+The code for this step is contained in the file `ExtractFeatures.py` with the class ExtractFeatures. The class contains six methods for handling the extracting features process. In the following I describe some of the key methods.
+1. Constructor in which the parameter for the extraction process are defined
 
-####1. Explain how (and identify where in your code) you extracted HOG features from the training images.
+```python
+    def __init__(self, color_space='YCrCb', spatial_size=(32, 32), hist_bins=32, orient=9,
+                     pix_per_cell=8, cell_per_block=2, hog_channel='ALL', spatial_feat=True, hist_feat=True,
+                     hog_feat=True, vis=False, feature_vec=True): 
 
-The code for this step is contained in the first code cell of the IPython notebook (or in lines # through # of the file called `some_file.py`).  
+        self.color_space = color_space
+        self.spatial_size = spatial_size
+        self.hist_bins  = hist_bins
+        self.orient  = orient
+        self.pix_per_cell  = pix_per_cell
+        self.cell_per_block  = cell_per_block
+        self.hog_channel  = hog_channel
+        self.spatial_feat  = spatial_feat
+        self.hist_feat  = hist_feat
+        self.hog_feat  = hog_feat
+        self.vis = vis
+        self.feature_vec = feature_vec
+```
+2. The `extract_features` method controls which features are extracted and returns the feature vector for the given image
+```python
+    def extract_features(self, image):
+        file_features = []
 
-I started by reading in all the `vehicle` and `non-vehicle` images.  Here is an example of one of each of the `vehicle` and `non-vehicle` classes:
+        if self.spatial_feat == True:
+            spatial_features = self.bin_spatial(image, self.spatial_size)
+            file_features.append(spatial_features)
+        if self.hist_feat == True:
+            hist_features = self.color_hist(image, nbins=self.hist_bins)
+            file_features.append(hist_features)
+        if self.hog_feat == True:
+            # Call get_hog_features() with vis=False, feature_vec=True
+            if self.hog_channel == 'ALL':
+                hog_features = []
+                for channel in range(image.shape[2]):
+                    hog_channel_features = self.get_hog_features(image[:,:,channel], self.orient, self.pix_per_cell, self.cell_per_block, vis=self.vis, feature_vec=self.feature_vec)
+                    hog_features.append(hog_channel_features)
+                hog_features = np.ravel(hog_features)        
+            else:
+                hog_features = self.get_hog_features(image[:,:,self.hog_channel], self.orient, self.pix_per_cell, self.cell_per_block, vis=self.vis, feature_vec=self.feature_vec)
+            # Append the new feature vector to the features list
+            file_features.append(hog_features)
+        return np.concatenate(file_features) #.reshape(1, -1)
+```
+3. The mehtods `get_hog_features`, `bin_spatial` and `color_hist` are performing the concrete feature extraction
+```python
+    # Define a function to return HOG features and visualization
+    def get_hog_features(self, img, orient, pix_per_cell, cell_per_block, vis=False, feature_vec=True):
+        if vis == True:
+            # Use skimage.hog() to get both features and a visualization
+            fd, hog_image = hog(img, orientations=orient, pixels_per_cell=(pix_per_cell,pix_per_cell),
+                        cells_per_block=(cell_per_block,cell_per_block), visualise=vis, feature_vector=feature_vec)
+            features = fd 
+            hog_image = hog_image 
+            return features, hog_image
+        else:      
+            # Use skimage.hog() to get features only
+            return hog(img, orientations=orient, pixels_per_cell=(pix_per_cell,pix_per_cell), cells_per_block=(cell_per_block,cell_per_block), visualise=vis, feature_vector=feature_vec)
 
-![alt text][image1]
+    # Define a function to compute binned color features  
+    def bin_spatial(self, img, size=(32, 32)):
+        features = cv2.resize(img, size).ravel() 
+        return features
 
-I then explored different color spaces and different `skimage.hog()` parameters (`orientations`, `pixels_per_cell`, and `cells_per_block`).  I grabbed random images from each of the two classes and displayed them to get a feel for what the `skimage.hog()` output looks like.
+    # Define a function to compute color histogram features  
+    def color_hist(self, img, nbins=32, bins_range=(0, 256)):
+        # Compute the histogram of the color channels separately
+        channel1_hist = np.histogram(img[:,:,0], bins=nbins, range=bins_range)
+        channel2_hist = np.histogram(img[:,:,1], bins=nbins, range=bins_range)
+        channel3_hist = np.histogram(img[:,:,2], bins=nbins, range=bins_range)
+        # Concatenate the histograms into a single feature vector
+        hist_features = np.concatenate((channel1_hist[0], channel2_hist[0], channel3_hist[0]))
+        # Return the individual histograms, bin_centers and feature vector
+        return hist_features          
 
-Here is an example using the `YCrCb` color space and HOG parameters of `orientations=8`, `pixels_per_cell=(8, 8)` and `cells_per_block=(2, 2)`:
+```
+
+#### 2. SVM Classifier 
+
+In the file `SvmClassifier.py` I handle the training and prediction with a Supported Vector Machine. At the Constructor I initialized a `StandardScaler.py`. The scaler transformation method is used for each passed feature vector. For the trainig stage I used a  `StratifiedShuffleSplit` with teen splits. So the best SVM with the best score is stored and will be used for prediction. The SVM is trainied with the probability flag true so it is possible to get probabilitys for each prediction. 
 
 
-![alt text][image2]
+```python
+class SvmClassifier(object):
+    """description of class"""
 
-####2. Explain how you settled on your final choice of HOG parameters.
+    def __init__(self):
 
-I tried various combinations of parameters and...
+        self.x_scaler = StandardScaler()
+        self.svm = None
 
-####3. Describe how (and identify where in your code) you trained a classifier using your selected HOG features (and color features if you used them).
+    def train(self, X, y, n_splits = 10, test_size = 0.5, random_state=0):
 
-I trained a linear SVM using...
+        self.x_scaler.fit(X)
+        scaled_X = self.x_scaler.transform(X)
 
-###Sliding Window Search
+        acc = 0
+        sss = StratifiedShuffleSplit(n_splits=n_splits, test_size=test_size, random_state=random_state)
+        for train_index, test_index in sss.split(scaled_X, y):
+            X_train, X_test = scaled_X[train_index], scaled_X[test_index]
+            y_train, y_test = y[train_index], y[test_index]
 
-####1. Describe how (and identify where in your code) you implemented a sliding window search.  How did you decide what scales to search and how much to overlap windows?
+            temp_svm = SVC(probability=True)
+            temp_svm.fit(X_train, y_train)
+
+            score = round(temp_svm.score(X_test, y_test), 4)
+            print('Test Accuracy of SVC = ', score)
+            if score > acc:
+                acc = score
+                self.svm = temp_svm
+
+    def predict(self, X):
+
+        scaled_X = self.x_scaler.transform(X)        
+        return self.svm.predict(scaled_X)
+
+    def predict_probability(self, X):
+
+        scaled_X = self.x_scaler.transform(X)        
+        return self.svm.predict_proba(scaled_X)
+
+```
+#### 3. Training and parameter optimisation
+
+With the above describet methods I first extracted the features for each image in the cars and notcars folder and trained an probabilistic support vector machine which is contained in the file `SvmClassifier.py`
+```python
+images = glob.glob('test_images/vehicles_smallset/*/*.jpeg', recursive=True)
+cars = []
+notcars = []
+
+for image in images:
+    if 'image' in image.split("\\")[-1] or 'extra' in image.split("\\")[-1]:
+        notcars.append(image)
+    else:
+        cars.append(image)
+
+# Feature extraction
+extractFeatures = ExtractFeatures()
+car_features = extractFeatures.extract_features_from_paths(cars)
+not_car_features = extractFeatures.extract_features_from_paths(notcars)
+
+#X = np.vstack((car_features, not_car_features)).astype(np.float64)
+X = np.vstack((car_features, not_car_features)).astype(np.float64)
+y = np.hstack((np.ones(len(car_features)), np.zeros(len(not_car_features))))
+
+# train classifier 
+svm = SvmClassifier()
+svm.train(X,y)
+```
+
+To find the best parameter I performed a grid search. 
+```python
+for colorspace in ['RGB', 'HSV', 'LUV', 'HLS', 'YUV', 'YCrCb']:
+    for pix_per_cell in [8, 16]:
+        for cell_per_block in [1, 2, 3]:
+            for hog_channel in [0, 1, 2,'ALL']:
+                for use_hog_feat in [True, False]:
+                   for use_hist_feat in [True, False]:
+                      for use_spatial_feat in [True, False]:
+                   
+```
+
+This very time consuming process resulted in an accuracy of 99.91% with the parameter color_space='YCrCb', spatial_size=(32, 32), hist_bins=32, orient=9, pix_per_cell=8, cell_per_block=2, hog_channel='ALL', spatial_feat=True, hist_feat=True,                    hog_feat=True
+
+Finaly I saved the class used for feature extraction and classification to a pickle file. For later classification I load this combination to make sure I use the same paramter I used for training. 
+
+```python
+extracted_features_and_svm = {"svm":svm, "extractFeatures":extractFeatures}
+
+with open('extracted_features_and_svm.pk', 'wb') as pickle_file:
+    pickle.dump(extracted_features_and_svm, pickle_file)
+```
+
+
+### Sliding Window Search combined with a image pyramide and the trained SVM
+
+#### 1. Image pyramid and sliding window search
+
+The code for the iamge pyramid and the sliding window is located a the file `ExtractCars.py`  
+```python
+    def sliding_window(self, image, stepSize, windowSize):
+        # slide a window across the image
+        for y in range(0, image.shape[0], stepSize):
+            for x in range(0, image.shape[1], stepSize):
+                # yield the current window
+                yield (x, y, image[y:y + windowSize[1], x:x + windowSize[0]])
+
+    def pyramid(self, image, scale_steps=[1,2]): # 1.5,2,2.5
+
+        for scale in scale_steps:
+            imshape = image.shape
+            image = cv2.resize(image, (int(imshape[1] / scale), int(imshape[0] / scale)))
+            # yield the next image in the pyramid
+            yield image, scale
+```
+I corpped the search area to y position 350 to 650 to reduce the search window an increase the processing speed. The window size is 64 which is defined by the size of the trainig images. The step size is 18 which is a very small value but with larger step sizes I had problems finding cars on the right corner of the image. To find cars a differnt scales I used a image pyramid which scales the image by the factor of two in the second iteration. 
+
 
 I decided to search random window positions at random scales all over the image and came up with this (ok just kidding I didn't actually ;):
 
