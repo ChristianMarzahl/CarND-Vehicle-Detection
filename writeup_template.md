@@ -108,7 +108,7 @@ The code for this step is contained in the file `ExtractFeatures.py` with the cl
         return hist_features          
 ```
 
-In the following some example images with the corresponding hog features visualized. With the parameter orient = 9
+In the following table I visualized some example images with the corresponding hog features. The parameters are: orient = 9
 pix_per_cell = 8 cell_per_block = 2.
 
 | Non Car Images        | Car Images           |
@@ -119,7 +119,7 @@ pix_per_cell = 8 cell_per_block = 2.
 
 #### 2. SVM Classifier 
 
-In the file `SvmClassifier.py` I handle the training and prediction with a Supported Vector Machine. At the Constructor I initialize a `StandardScaler`. The scaler transformation method is used for each passed feature vector. For the training stage I used a  `StratifiedShuffleSplit` with teen splits. So the best SVM, with the best score is stored and will be used for prediction. The SVM is trained with the probability flag true so it is possible to get probabilities for each prediction. 
+In the file `SvmClassifier.py` I handle the training and prediction with a Supported Vector Machine. At the Constructor I initialize a `StandardScaler`. The scaler transformation method is used for each passed feature vector. For the training stage I used a  `StratifiedShuffleSplit` with ten splits. So the SVM with the best score is stored and will be used for prediction. The SVM is trained with the probability flag true so it is possible to get probabilities for each prediction. 
 
 
 ```python
@@ -164,7 +164,7 @@ class SvmClassifier(object):
 ```
 #### 3. Training and parameter optimisation
 
-With the above describet methods I first extracted the features for each image in the cars and not cars folder and trained an probabilistic support vector machine which is contained in the file `train_svm.py`
+First I extracted the features for each image in the cars and not cars folder and trained an probabilistic support vector machine with the above described methods.  In the file `train_svm.py` which is described below are the classes `ExtractFeatures` and `SvmClassifier` called.  
 ```python
 images = glob.glob('test_images/vehicles_smallset/*/*.jpeg', recursive=True)
 cars = []
@@ -238,7 +238,7 @@ The code for the image pyramid and the sliding window is located a the file `Ext
             # yield the next image in the pyramid
             yield image, scale
 ```
-I corpet the search area to y position 350 to 650 to reduce the search window and increase the processing speed. The window size is 64 which is defined by the size of the training images. The step size is 18 which is a very small value but with larger step sizes I had problems finding cars on the right corner of the image. To find cars a different scales I used a image pyramid which scales the image by the factor of two in the second iteration. 
+I cropped the search area to y position 350 to 650 to reduce the search window and increase the processing speed. The window size is 64 which is defined by the size of the training images. The step size is 18 which is a very small value. However, with larger step sizes I had problems finding cars on the right corner of the image. To find cars a different scales I used a image pyramid which scales the image by the factor two in the second iteration. 
 
 ![sliding_window](https://github.com/ChristianMarzahl/CarND-Vehicle-Detection/blob/master/output_images/sliding_window.gif)
 
@@ -246,7 +246,7 @@ I corpet the search area to y position 350 to 650 to reduce the search window an
 
 #### 2. Finding cars and use of the svm to classify the image patches
 
-The file `ExtractCars.py`with the contained class `ExtractCars` is initialized with a search area `(400,600)`, a window size `(64,64)` the class for the feature extraction and the class that contains the trained classifier. The method `extract_cars` performs the classification pipeline. 
+The file `ExtractCars.py`with the contained class `ExtractCars` is initialized with a search area `(400,600)`, a window size `(64,64),` the class for the feature extraction and the class that contains the trained classifier. The method `extract_cars` performs the classification pipeline. 
 1. Cropping the image to the passed search area 
 ```python
  sub_image = img[self.search_area[0]:self.search_area[1], :, :]
@@ -275,7 +275,7 @@ heatmap[int(y*scale):int((y + self.windowSize[1])*scale),int(x*scale):int((x + s
 | ![alt text][image31]      |
 
 6. Post Processing and filtering 
-The heatmap is thresholded with a value of three to reduce false positives and the result dilated to remove small gaps between the hot areas. Finally I extract the contours to draw the bounding rectangle. 
+The heatmap is thresholded with a value of three to reduce false positives and dilated the result to remove small gaps between the hot areas. Finally I extract the contours to draw the bounding rectangle. 
 ```python
         kernel = np.ones((5,5),np.uint8)
         _, thresh_image = cv2.threshold(heatmap.astype(np.uint8),3,255,cv2.THRESH_BINARY)
@@ -294,8 +294,8 @@ The pipeline described above worked well but had a major drawback. It was to slo
 
 #### YOLO
 
-Because I know the performance draw back in advance I did not spend too much time in performance and speed optimisation. Instead I used basically [YOLO](https://pjreddie.com/darknet/yolo/) a real time object detection system for which I found a working Keras portation. I used this portation as a starting point and extended the implementation with an additional feature to estimate the object distance from the camera. 
-For that I trained an additional network network with a final dense layer which predicts the real object height. The used network architecture is basically the same as for the CarND-Behavioral-Cloning project but instead of a steering angle I used the car height as y and pictures downloaded from google. The code for this is not part of my submission due to license restrictions. 
+Because I knew the performance draw back in advance I did not spend too much time on performance and speed optimisation. Instead, I used basically [YOLO](https://pjreddie.com/darknet/yolo/) a real time object detection system for which I found a working Keras portation. I used this portation as a starting point and extended the implementation with an additional feature to estimate the object distance from the camera. 
+Therefore, I trained an additional network network with a final dense layer which predicts the real object height. The used network architecture is basically the same as for the CarND-Behavioral-Cloning project but instead of a steering angle I used the car's height as y and pictures downloaded from google. This code is not part of my submission due to license restrictions. 
 
 | Layer (type)             |    Output Shape           |
 | :-------------: |:-------------:|
@@ -316,13 +316,13 @@ The distance can be calculated with the predicted height by the following formul
 distance = (predicted_real_car_height * 29.4 / np.abs(object_height_in_pixel)) * 10
 ```
 
-The following video was taken with my Nexus 5 placed on the dashboard of my car. The implementation run on my local GTX 1070.
+The following video was taken with my Nexus 5 placed on the dashboard of my car. The implementation was run on my local GTX 1070.
 
 <a href="http://www.youtube.com/watch?feature=player_embedded&v=tVB-f1oESUg&t=33s" target="_blank"><img src="http://img.youtube.com/vi/tVB-f1oESUg/0.jpg" alt="CarND vehicle detection" width="720" height="360" border="10" /></a>
 
 
 ### Discussion
 
-#### 1. The implementation based on HOG and SVM is slow and produces to many false positive or don't find the car at all. Both drawbacks can by overcome be using modern Deep Learning approaches like YOLO or by using a CNN approach for feature extraction.  
+#### 1. The implementation based on HOG and SVM is slow and produces to many false positives or does not find the car at all. Both drawbacks can by overcome be using modern Deep Learning approaches like YOLO or by using a CNN approach for feature extraction.  
 
 
