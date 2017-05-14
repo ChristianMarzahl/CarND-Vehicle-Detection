@@ -9,6 +9,8 @@ The goals / steps of this project are the following:
 * Run your pipeline on a video stream (start with the test_video.mp4 and later implement on full project_video.mp4) and create a heat map of recurring detections frame by frame to reject outliers and follow detected vehicles.
 * Estimate a bounding box for vehicles detected.
 
+<a href="http://www.youtube.com/watch?feature=player_embedded&v=tVB-f1oESUg&t=33s" target="_blank"><img src="http://img.youtube.com/vi/tVB-f1oESUg/0.jpg" alt="CarND vehicle detection" width="720" height="360" border="10" /></a>
+
 [//]: # (Image References)
 
 [image10]: ./output_images/not_car_hog_1.png
